@@ -59,7 +59,7 @@ pub struct DetectionConfig {
 impl Default for DetectionConfig {
     fn default() -> Self {
         Self {
-            max_pages_to_sample: 5,
+            max_pages_to_sample: u32::MAX,
             min_text_ops_per_page: 3,
             text_page_ratio_threshold: 0.6,
         }
@@ -153,13 +153,14 @@ fn detect_from_document(
     let mut pages_with_images = 0u32;
     let mut pages_with_template_images = 0u32;
     let mut total_text_ops = 0u32;
-
     // Cache Phase 1 results to avoid re-analyzing sampled pages in Phase 2
     let mut analysis_cache: HashMap<u32, PageAnalysis> = HashMap::new();
+    let mut pages_actually_sampled = 0u32;
 
     for page_num in &sample_indices {
         if let Some(&page_id) = pages.get(page_num) {
             let analysis = analyze_page_content(doc, page_id);
+            pages_actually_sampled += 1;
             if analysis.text_operator_count >= config.min_text_ops_per_page {
                 pages_with_text += 1;
             }
@@ -170,11 +171,19 @@ fn detect_from_document(
                 pages_with_template_images += 1;
             }
             total_text_ops += analysis.text_operator_count;
-            analysis_cache.insert(*page_num, analysis);
+            analysis_cache.insert(*page_num, analysis.clone());
+
+            // Early exit: if this page is non-text (no text ops but has images),
+            // this PDF won't be purely TextBased. Stop scanning remaining pages.
+            if analysis.text_operator_count < config.min_text_ops_per_page
+                && (analysis.has_images || analysis.has_template_image)
+            {
+                break;
+            }
         }
     }
 
-    let pages_sampled = sample_indices.len() as u32;
+    let pages_sampled = pages_actually_sampled;
     let text_ratio = if pages_sampled > 0 {
         pages_with_text as f32 / pages_sampled as f32
     } else {

@@ -33,6 +33,10 @@ pub struct PdfProcessResult {
     pub processing_time_ms: u64,
     /// 1-indexed page numbers that need OCR.
     pub pages_needing_ocr: Vec<u32>,
+    /// Title from PDF metadata (if available)
+    pub title: Option<String>,
+    /// Detection confidence score (0.0 - 1.0)
+    pub confidence: f32,
 }
 
 /// Process a PDF file with smart detection and extraction
@@ -51,6 +55,8 @@ pub fn process_pdf<P: AsRef<Path>>(path: P) -> Result<PdfProcessResult, PdfError
     let page_count = detection.page_count;
     let pdf_type = detection.pdf_type;
     let pages_needing_ocr = detection.pages_needing_ocr;
+    let title = detection.title;
+    let confidence = detection.confidence;
 
     let result = match pdf_type {
         PdfType::TextBased => {
@@ -65,6 +71,8 @@ pub fn process_pdf<P: AsRef<Path>>(path: P) -> Result<PdfProcessResult, PdfError
                 page_count,
                 processing_time_ms: start.elapsed().as_millis() as u64,
                 pages_needing_ocr,
+                title,
+                confidence,
             }
         }
         PdfType::Scanned | PdfType::ImageBased => {
@@ -76,6 +84,8 @@ pub fn process_pdf<P: AsRef<Path>>(path: P) -> Result<PdfProcessResult, PdfError
                 page_count,
                 processing_time_ms: start.elapsed().as_millis() as u64,
                 pages_needing_ocr,
+                title,
+                confidence,
             }
         }
         PdfType::Mixed => {
@@ -90,6 +100,8 @@ pub fn process_pdf<P: AsRef<Path>>(path: P) -> Result<PdfProcessResult, PdfError
                 page_count,
                 processing_time_ms: start.elapsed().as_millis() as u64,
                 pages_needing_ocr,
+                title,
+                confidence,
             }
         }
     };
@@ -108,6 +120,8 @@ pub fn process_pdf_mem(buffer: &[u8]) -> Result<PdfProcessResult, PdfError> {
     let page_count = detection.page_count;
     let pdf_type = detection.pdf_type;
     let pages_needing_ocr = detection.pages_needing_ocr;
+    let title = detection.title;
+    let confidence = detection.confidence;
 
     let result = match pdf_type {
         PdfType::TextBased => {
@@ -122,6 +136,8 @@ pub fn process_pdf_mem(buffer: &[u8]) -> Result<PdfProcessResult, PdfError> {
                 page_count,
                 processing_time_ms: start.elapsed().as_millis() as u64,
                 pages_needing_ocr,
+                title,
+                confidence,
             }
         }
         PdfType::Scanned | PdfType::ImageBased => PdfProcessResult {
@@ -131,6 +147,8 @@ pub fn process_pdf_mem(buffer: &[u8]) -> Result<PdfProcessResult, PdfError> {
             page_count,
             processing_time_ms: start.elapsed().as_millis() as u64,
             pages_needing_ocr,
+            title,
+            confidence,
         },
         PdfType::Mixed => {
             let items = extractor::extract_text_with_positions_mem(buffer).ok();
@@ -143,6 +161,8 @@ pub fn process_pdf_mem(buffer: &[u8]) -> Result<PdfProcessResult, PdfError> {
                 page_count,
                 processing_time_ms: start.elapsed().as_millis() as u64,
                 pages_needing_ocr,
+                title,
+                confidence,
             }
         }
     };

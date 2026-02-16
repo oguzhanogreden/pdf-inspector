@@ -56,7 +56,7 @@ fn make_text_item_with_font(
 #[test]
 fn test_detection_config_default() {
     let config = DetectionConfig::default();
-    assert_eq!(config.max_pages_to_sample, 5);
+    assert_eq!(config.max_pages_to_sample, u32::MAX);
     assert_eq!(config.min_text_ops_per_page, 3);
     assert!((config.text_page_ratio_threshold - 0.6).abs() < 0.001);
 }
@@ -863,6 +863,8 @@ fn test_pages_needing_ocr_field_accessible() {
         page_count: 1,
         processing_time_ms: 0,
         pages_needing_ocr: vec![1, 3],
+        title: None,
+        confidence: 1.0,
     };
     assert_eq!(process_result.pages_needing_ocr, vec![1, 3]);
 }
