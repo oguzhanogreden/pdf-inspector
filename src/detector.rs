@@ -236,8 +236,9 @@ fn detect_from_document(
                 } else {
                     continue;
                 };
-                if analysis.text_operator_count < config.min_text_ops_per_page
-                    && (analysis.has_images || analysis.has_template_image)
+                if analysis.has_template_image
+                    || (analysis.text_operator_count < config.min_text_ops_per_page
+                        && analysis.has_images)
                 {
                     ocr_pages.push(page_num);
                 }

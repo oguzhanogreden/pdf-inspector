@@ -2124,7 +2124,7 @@ pub(crate) fn detect_columns(items: &[TextItem], page: u32) -> Vec<ColumnRegion>
     const MIN_GUTTER_WIDTH: f32 = 8.0;
     const MIN_VERTICAL_SPAN_RATIO: f32 = 0.30;
     const MIN_ITEMS_PER_COLUMN: usize = 10;
-    const NOISE_FRACTION: f32 = 0.05;
+    const NOISE_FRACTION: f32 = 0.15;
 
     // Get items for this page
     let page_items: Vec<&TextItem> = items.iter().filter(|i| i.page == page).collect();
@@ -2791,5 +2791,92 @@ mod tests {
         let lines = group_into_lines(items);
         assert_eq!(lines.len(), 1);
         assert_eq!(lines[0].text(), "である履行義務を識別す");
+    }
+
+    fn make_item(text: &str, x: f32, y: f32, width: f32) -> TextItem {
+        TextItem {
+            text: text.into(),
+            x,
+            y,
+            width,
+            height: 12.0,
+            font: "F1".into(),
+            font_size: 12.0,
+            page: 1,
+            is_bold: false,
+            is_italic: false,
+            item_type: ItemType::Text,
+        }
+    }
+
+    #[test]
+    fn test_detect_two_columns() {
+        let mut items = Vec::new();
+        // Left column at x=72, right column at x=350, gutter ~278-350
+        for i in 0..30 {
+            let y = 700.0 - (i as f32) * 14.0;
+            items.push(make_item("Left text here", 72.0, y, 200.0));
+            items.push(make_item("Right text here", 350.0, y, 200.0));
+        }
+        let cols = detect_columns(&items, 1);
+        assert_eq!(cols.len(), 2, "Expected 2 columns, got {:?}", cols);
+        assert!(cols[0].x_min < cols[1].x_min);
+    }
+
+    #[test]
+    fn test_detect_three_columns() {
+        let mut items = Vec::new();
+        // Three columns at x=50, x=220, x=390
+        for i in 0..30 {
+            let y = 700.0 - (i as f32) * 14.0;
+            items.push(make_item("Col one", 50.0, y, 140.0));
+            items.push(make_item("Col two", 220.0, y, 140.0));
+            items.push(make_item("Col three", 390.0, y, 140.0));
+        }
+        let cols = detect_columns(&items, 1);
+        assert_eq!(cols.len(), 3, "Expected 3 columns, got {:?}", cols);
+    }
+
+    #[test]
+    fn test_width_bleed_tolerance() {
+        let mut items = Vec::new();
+        // Two columns with a clear gutter
+        for i in 0..30 {
+            let y = 700.0 - (i as f32) * 14.0;
+            items.push(make_item("Left text", 72.0, y, 200.0));
+            items.push(make_item("Right text", 350.0, y, 200.0));
+        }
+        // Add a few items that bleed across the gutter
+        for i in 0..3 {
+            let y = 700.0 - (i as f32) * 14.0;
+            items.push(make_item("wide", 72.0, y, 320.0));
+        }
+        let cols = detect_columns(&items, 1);
+        assert!(
+            cols.len() >= 2,
+            "Width bleed should not prevent column detection, got {:?}",
+            cols
+        );
+    }
+
+    #[test]
+    fn test_single_column_no_false_split() {
+        let mut items = Vec::new();
+        // Single column: items spanning full width
+        for i in 0..30 {
+            let y = 700.0 - (i as f32) * 14.0;
+            items.push(make_item(
+                "This is a full-width paragraph of text",
+                72.0,
+                y,
+                468.0,
+            ));
+        }
+        let cols = detect_columns(&items, 1);
+        assert!(
+            cols.len() <= 1,
+            "Full-width text should not be split into columns, got {:?}",
+            cols
+        );
     }
 }
