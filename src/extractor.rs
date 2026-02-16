@@ -979,6 +979,7 @@ fn extract_page_text_items(
     // Text state tracking
     let mut current_font = String::new();
     let mut current_font_size: f32 = 12.0;
+    let mut text_leading: f32 = 0.0; // TL parameter (in text-space units)
     let mut text_matrix = [1.0f32, 0.0, 0.0, 1.0, 0.0, 0.0];
     let mut line_matrix = [1.0f32, 0.0, 0.0, 1.0, 0.0, 0.0];
     let mut in_text_block = false;
@@ -1058,14 +1059,24 @@ fn extract_page_text_items(
                     }
                 }
             }
+            "TL" => {
+                // Set text leading (used by T*, ', and " operators)
+                if let Some(tl) = op.operands.first().and_then(get_number) {
+                    text_leading = tl;
+                }
+            }
             "Td" | "TD" => {
-                // Move text position
+                // Move text position: TLM = T(tx,ty) × TLM; Tm = TLM
+                // tx,ty are in text space — must be scaled by the text line matrix
                 if op.operands.len() >= 2 {
                     let tx = get_number(&op.operands[0]).unwrap_or(0.0);
                     let ty = get_number(&op.operands[1]).unwrap_or(0.0);
-                    line_matrix[4] += tx;
-                    line_matrix[5] += ty;
+                    line_matrix[4] += tx * line_matrix[0] + ty * line_matrix[2];
+                    line_matrix[5] += tx * line_matrix[1] + ty * line_matrix[3];
                     text_matrix = line_matrix;
+                    if op.operator == "TD" {
+                        text_leading = -ty;
+                    }
                 }
             }
             "Tm" => {
@@ -1079,8 +1090,14 @@ fn extract_page_text_items(
                 }
             }
             "T*" => {
-                // Move to start of next line
-                line_matrix[5] -= current_font_size * 1.2; // Approximate line height
+                // Move to start of next line: equivalent to 0 -TL Td
+                let tl = if text_leading != 0.0 {
+                    text_leading
+                } else {
+                    current_font_size * 1.2
+                };
+                line_matrix[4] += (-tl) * line_matrix[2]; // Usually 0 for non-rotated text
+                line_matrix[5] += (-tl) * line_matrix[3];
                 text_matrix = line_matrix;
             }
             "Tj" => {
@@ -1258,8 +1275,14 @@ fn extract_page_text_items(
                 }
             }
             "'" => {
-                // Move to next line and show text
-                line_matrix[5] -= current_font_size * 1.2;
+                // Move to next line and show text (equivalent to T* then Tj)
+                let tl = if text_leading != 0.0 {
+                    text_leading
+                } else {
+                    current_font_size * 1.2
+                };
+                line_matrix[4] += (-tl) * line_matrix[2];
+                line_matrix[5] += (-tl) * line_matrix[3];
                 text_matrix = line_matrix;
                 if !fill_is_white && !op.operands.is_empty() {
                     if let Some(text) = extract_text_from_operand(
@@ -1503,8 +1526,8 @@ fn extract_form_xobject_text(
                 if op.operands.len() >= 2 {
                     let tx = get_number(&op.operands[0]).unwrap_or(0.0);
                     let ty = get_number(&op.operands[1]).unwrap_or(0.0);
-                    text_matrix[4] += tx;
-                    text_matrix[5] += ty;
+                    text_matrix[4] += tx * text_matrix[0] + ty * text_matrix[2];
+                    text_matrix[5] += tx * text_matrix[1] + ty * text_matrix[3];
                 }
             }
             "Tm" => {
