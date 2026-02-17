@@ -151,7 +151,7 @@ pub fn to_markdown_from_items_with_rects(
                     links.push(item);
                 }
             }
-            ItemType::Text => {
+            ItemType::Text | ItemType::FormField => {
                 text_items.push(item);
             }
         }
