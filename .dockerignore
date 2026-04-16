@@ -1,0 +1,17 @@
+target/
+.git/
+.gitignore
+.idea/
+.vscode/
+.DS_Store
+*.swp
+*.swo
+samples/
+scripts/
+test_output/
+napi/
+docs/
+pyproject.toml
+pdf_inspector.pyi
+*.pdb
+*.rs.bk
