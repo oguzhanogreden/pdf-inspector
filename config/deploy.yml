@@ -1,0 +1,34 @@
+# Kamal deployment config for pdf-inspector.
+# Replace the placeholders (UPPERCASE values) with your real settings.
+# Secrets like KAMAL_REGISTRY_PASSWORD live in .kamal/secrets (or your env).
+
+service: pdf-inspector
+
+image: YOUR_REGISTRY_USERNAME/pdf-inspector
+
+servers:
+  web:
+    - YOUR_SERVER_IP
+
+proxy:
+  ssl: true
+  host: YOUR_DOMAIN
+  app_port: 3000
+  healthcheck:
+    path: /health
+    interval: 10
+
+registry:
+  server: ghcr.io
+  username: YOUR_REGISTRY_USERNAME
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+env:
+  clear:
+    PORT: "3000"
+    PDF_INSPECTOR_BCMAPS_DIR: /opt/pdf-inspector/bcmaps
+    RUST_LOG: info
+
+builder:
+  arch: amd64
